@@ -3,6 +3,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from database import init_db, get_player, create_player, update_player
 from game_logic import ARTIFACT_NAMES, get_artifact_levels, set_artifact_levels, get_artifact_info, get_upgrade_cost
+import asyncio
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +19,9 @@ MAIN_KEYBOARD = [
 ]
 
 REPLY_MARKUP = ReplyKeyboardMarkup(MAIN_KEYBOARD, resize_keyboard=True, one_time_keyboard=False)
+
+# Для отслеживания последнего обновления дохода
+last_income_update = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -188,6 +193,49 @@ async def upgrade_artifact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer("✅ Артефакт улучшен!", show_alert=True)
     await show_artifact_detail(update, context, artifact_id)
+
+async def passive_income_worker(application: Application):
+    """Фоновая задача для пассивного дохода"""
+    global last_income_update
+    while True:
+        try:
+            conn = sqlite3.connect('game.db')
+            c = conn.cursor()
+            c.execute("SELECT user_id, artifact_levels, coins, artifact_parts, magic_dust, guns FROM players")
+            players = c.fetchall()
+            conn.close()
+
+            now = datetime.utcnow().timestamp()
+            for player in players:
+                user_id = player[0]
+                levels_str = player[1]
+                levels = get_artifact_levels(levels_str)
+
+                # Получаем доход в секунду
+                income = calculate_passive_income(levels)
+
+                # Сколько секунд прошло с последнего обновления?
+                last_time = last_income_update.get(user_id, now)
+                elapsed = now - last_time
+                if elapsed < 1:
+                    continue
+
+                # Рассчитываем накопленный доход
+                add_coins = income['coins'] * elapsed
+                add_dust = income['magic_dust'] * elapsed
+                add_guns = income['guns'] * elapsed
+                add_parts = income['artifact_parts'] * elapsed
+
+                # Обновляем ресурсы
+                update_resources(user_id, add_coins, add_parts, add_dust, add_guns)
+
+                # Обновляем время
+                last_income_update[user_id] = now
+
+            await asyncio.sleep(10)  # Проверяем каждые 10 секунд
+        except Exception as e:
+            logger.error(f"Ошибка в passive_income_worker: {e}")
+            await asyncio.sleep(10)
 
 # Инициализация
 def main():

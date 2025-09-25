@@ -240,8 +240,10 @@ async def passive_income_worker(application: Application):
 # Инициализация
 def main():
     init_db()
-    # Замените на ваш токен!
     app = Application.builder().token("ВАШ_ТОКЕН_СЮДА").build()
+
+    # Запускаем фоновую задачу
+    asyncio.create_task(passive_income_worker(app))
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name))
@@ -250,7 +252,7 @@ def main():
     ) + ")$"), menu_handler))
     app.add_handler(CallbackQueryHandler(inline_button_handler))
 
-    logger.info("Бот запущен! (Termux OK)")
+    logger.info("Бот запущен! (Termux OK) | Пассивный доход активен")
     app.run_polling()
 
 if __name__ == '__main__':

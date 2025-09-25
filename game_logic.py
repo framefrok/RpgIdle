@@ -28,9 +28,38 @@ def get_artifact_info(artifact_id, level):
     return info.get(artifact_id, "Неизвестный артефакт")
 
 def get_upgrade_cost(level):
-    # Пример: экспоненциальный рост
     return {
         'coins': int(100 * (1.5 ** level)),
         'artifact_parts': int(10 * (1.4 ** level)),
         'magic_dust': int(5 * (1.3 ** level))
     }
+
+# === НОВОЕ: ФУНКЦИЯ ДОХОДА ===
+def calculate_passive_income(levels):
+    """
+    Возвращает доход за 1 секунду.
+    """
+    income = {
+        'coins': 0.0,
+        'magic_dust': 0.0,
+        'guns': 0.0,
+        'artifact_parts': 0.0
+    }
+
+    # Шлих — монеты
+    shlih_level = levels[0]
+    income['coins'] += 0.25 * (shlih_level // 10)
+
+    # Волшебный шар — пыль
+    orb_level = levels[5]
+    income['magic_dust'] += 2 * orb_level + 20 * (orb_level // 10)
+
+    # Магический верстак — самопалы (в минуту → в секунду)
+    bench_level = levels[4]
+    income['guns'] += (5 * bench_level) / 60.0
+
+    # Компас — части артефактов (в минуту → в секунду)
+    compass_level = levels[7]
+    income['artifact_parts'] += (2 * compass_level + 20 * (compass_level // 10)) / 60.0
+
+    return income

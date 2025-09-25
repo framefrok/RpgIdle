@@ -49,3 +49,17 @@ def update_player(user_id, **kwargs):
     c.execute(f"UPDATE players SET {fields} WHERE user_id = ?", values)
     conn.commit()
     conn.close()
+
+def update_resources(user_id, coins=0, artifact_parts=0, magic_dust=0, guns=0):
+    conn = sqlite3.connect('game.db')
+    c = conn.cursor()
+    c.execute('''
+        UPDATE players
+        SET coins = MAX(0, coins + ?),
+            artifact_parts = MAX(0, artifact_parts + ?),
+            magic_dust = MAX(0, magic_dust + ?),
+            guns = MAX(0, guns + ?)
+        WHERE user_id = ?
+    ''', (int(coins), int(artifact_parts), int(magic_dust), int(guns), user_id))
+    conn.commit()
+    conn.close()
